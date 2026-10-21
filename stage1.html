@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d2024">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RTQCP2HXM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9RTQCP2HXM');
+</script>
+<title>STAGE1 Webサーバーの中（リクエストとワーカー） ― 片付けを忘れたサーバー</title>
+<meta name="description" content="Webページが表示されるまでに、サーバーの中で何が起きているのか。リクエスト・PHP・ワーカーのしくみと、1つのワーカーが何人ものお客さんの頼みを順番に引き受ける「使い回し」と、1件ごとの片付けの約束を学ぶ。">
+<link rel="canonical" href="https://memory-safety.habatakijuku.com/stage1">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="片付けを忘れたサーバー">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="STAGE1 Webサーバーの中（リクエストとワーカー） ― 片付けを忘れたサーバー">
+<meta property="og:description" content="ブラウザの頼みはどう処理されるのか。PHPのワーカーが使い回されるしくみと、片付けの約束。">
+<meta property="og:url" content="https://memory-safety.habatakijuku.com/stage1">
+<meta property="og:image" content="https://memory-safety.habatakijuku.com/images/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="片付けを忘れたサーバー：番地つきの箱の棚と、途中で止められた処理係">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LearningResource",
+      "name": "STAGE1 Webサーバーの中",
+      "description": "Webページが表示されるまでに、サーバーの中で何が起きているのか。リクエスト・PHP・ワーカーのしくみと、1つのワーカーが何人ものお客さんの頼みを順番に引き受ける「使い回し」と、1件ごとの片付けの約束を学ぶ。",
+      "url": "https://memory-safety.habatakijuku.com/stage1",
+      "inLanguage": "ja",
+      "learningResourceType": "learning activity",
+      "educationalLevel": "中学生以上",
+      "isAccessibleForFree": true,
+      "position": 1,
+      "isPartOf": {
+        "@type": "LearningResource",
+        "name": "片付けを忘れたサーバー",
+        "url": "https://memory-safety.habatakijuku.com/"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "ruglerugle"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "片付けを忘れたサーバー",
+          "item": "https://memory-safety.habatakijuku.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "STAGE1 Webサーバーの中",
+          "item": "https://memory-safety.habatakijuku.com/stage1"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="design-system.css?v=20261022a">
+<style>
+  .note-box{background:#fffbe8;border:1px solid #e3d48f;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px;line-height:1.75;color:#3a3210;font-weight:700}
+  .note-box .nb-title{display:block;font-weight:950;margin-bottom:4px;color:#7a5a08}
+  .num-table{margin:10px auto 0;border-collapse:collapse;font-size:12.5px;max-width:100%}
+  .num-table th,.num-table td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+  .num-table th{background:var(--paper2);font-weight:900;color:var(--ink)}
+  .tbl-wrap{overflow-x:auto}
+  .code-box{background:#23262b;color:#e8e6e1;border-radius:10px;padding:12px 14px;margin:12px 0;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.7;text-align:left;overflow-x:auto;white-space:pre}
+  .code-box .c{color:#8d96a3}
+  .code-box .k{color:#f0a49e}
+  .code-box .s{color:#b7d99a}
+  .viz{width:100%;max-width:600px;margin:0 auto;overflow-x:auto}
+  .viz svg{display:block;width:100%;min-width:420px;height:auto;max-width:none}
+  .viz svg.narrow{min-width:0}
+  .viz-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .viz-ctl button{padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper2);color:var(--ink);font-size:12.5px;font-weight:800;cursor:pointer}
+  .viz-ctl button:hover{background:#fff}
+  .viz-ctl button:disabled{opacity:.4;cursor:default}
+  .viz-ctl .viz-count{font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;min-width:3.2em}
+  .viz-msg{margin:8px auto 0;max-width:560px;min-height:3.2em;font-size:13px;font-weight:800;line-height:1.6;color:#7d2a25;background:#fbf1f0;border:1px solid #e3bab5;border-radius:8px;padding:6px 10px}
+  .viz text{font-family:inherit}
+
+</style>
+
+</head>
+<body>
+<div class="app-shell side-collapsed" id="app-shell">
+  <header class="game-header">
+    <div class="brand">
+      <div class="brand-title"><a class="head-reset home-badge" href="index.html" title="トップへ" aria-label="トップへ">🐘</a> <span>片付けを忘れたサーバー</span></div>
+      <div class="brand-sub">STAGE 1 ― Webサーバーの中 ―</div>
+    </div>
+    <div class="head-progress-wrap">
+      <div class="head-progress-label" id="progress-label">クリア 0 / 3</div>
+      <div class="head-progress" role="progressbar" aria-label="クリア済みステージ数" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><div class="head-progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="header-actions">
+      <button class="head-reset" id="btn-reset-all">🔄 最初から</button>
+      <button class="head-reset" id="head-nav-toggle" title="ステージ一覧の表示切替">☰ ナビ</button>
+    </div>
+  </header>
+  <div class="game-layout">
+    <div class="side-backdrop" id="side-backdrop"></div>
+    <aside class="side-panel">
+      <div class="side-head">
+        <button class="side-toggle" id="sidebar-toggle" title="ステージ一覧の表示切替" aria-label="ステージ一覧の表示切替">☰</button>
+        <span class="side-head-text">📚 ステージ一覧</span>
+      </div>
+      <div class="side-list" id="side-list"></div>
+    </aside>
+    <main class="main-area">
+      <div class="chapter-head">
+        <span class="chapter-badge">STAGE 1</span><h1 class="chapter-title">Webサーバーの中</h1>
+        <div class="chapter-sub">リクエストとワーカー</div>
+      </div>
+      <div class="mission-box">
+        <div class="mission-label">🎯 ミッション</div>
+        <div class="mission-text">ブラウザがページを頼んでから返事が届くまでの流れと、<strong>ワーカー</strong>（PHPを動かす処理係）が<strong>何件もの頼みを順番に使い回して</strong>処理することを説明できれば合格。</div>
+        <span class="mission-status" id="mission-status">未達成</span>
+      </div>
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt=""></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">博士、ニュースで「Webサーバーに重大な脆弱性、すぐに更新を」と流れていました。PHPという言葉も出てきました。PHPって何ですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">Webサイトを動かすのによく使われているプログラミング言語だよ。ブログや通販サイト、学校のホームページまで、世界中のWebサイトのかなりの部分がPHPで動いている。だから、PHPのようなしくみに欠陥が見つかると大きなニュースになる。今日から何回かに分けて、Webサーバーの中で起きる「メモリの片付け」の問題を、しくみから順に追いかけよう。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">脆弱性というのは、弱点のことですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。プログラムの中の「悪用できる欠陥」のことを脆弱性という。ただのバグは「動きがおかしい」で終わるけれど、脆弱性は、他人がそれを利用して、本来できないはずのことをできてしまう。重さにはいろいろな段階がある。それはしくみを知ってから見ていこう。まずはWebサーバーの中で何が起きているかからだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">お願いします。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">きみがブラウザでWebページを開くとき、ブラウザはインターネットの向こうのコンピューターに「このページをください」という<strong>頼み</strong>を送る。この頼みを<strong>リクエスト</strong>という。受け取る側のコンピューターが<strong>Webサーバー</strong>だ。サーバーはページを作って送り返す。この返事を<strong>レスポンス</strong>という。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">頼んで、返事が来る。お店の注文みたいですね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">いいたとえだね。そのまま使おう。Webサーバーはお店だ。入口の受付係がリクエストを受け取り、中の<strong>処理係</strong>に回す。処理係がPHPのプログラムを動かしてページを作り、受付係が返事として送り返す。この処理係を<strong>ワーカー</strong>と呼ぶ。</div>
+        </div>
+      </div>
+
+      <div class="diagram-box">
+        <div id="v1"></div>
+        <div class="diagram-caption">ブラウザから届いたリクエストを、受付（Webサーバー）が空いているワーカーに回し、ワーカーがPHPのプログラムを動かしてページを作って返す。ワーカーは1件を終えると片付けをして、次のリクエストを待つ</div>
+      </div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">ワーカーは、リクエストのたびに新しく作られるんですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">いいところに目をつけたね。昔はそういうやり方もあった。でも、処理係を1人呼んで準備させるのには時間がかかる。だから今のサーバーは、何人かのワーカーをあらかじめ用意しておいて、<strong>1人のワーカーが何件ものリクエストを順番に引き受ける</strong>。1件終わったら机を片付けて、次のお客さんの頼みに取りかかるんだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">同じ処理係が、知らない人どうしの注文を続けて担当するということですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">その通り。Aさんの注文のすぐあとに、まったく無関係のBさんの注文を、同じワーカーが同じ机で処理する。ここで大事なのが<strong>片付け</strong>だ。Aさんの注文で使ったメモや材料を、Bさんの番までにきちんと片付けておかないと、どうなると思う？</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">Bさんの料理に、Aさんの注文のメモが混ざってしまうかもしれません。Aさんの名前や住所が書いてあったら、Bさんに見えてしまうかも。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。だから、PHPは1件のリクエストが終わるたびに、<strong>そのリクエストのために使ったものを全部片付ける</strong>という約束で作られている。リクエストごとにまっさらな机から始める。これがPHPの基本の考え方なんだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">それなら安全そうに聞こえます。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">約束が守られていればね。でも、プログラムは人が書くものだから、<strong>片付けに漏れがある</strong>ことがある。たとえば、作業の途中で急に手を止めなければならなくなって、やりかけのものが机に残ったまま次のお客さんの番が来てしまう、というような漏れだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">次のお客さんの番で……。だから、同じワーカーが使い回されることが関係するんですね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。ワーカーの使い回しは速さのための工夫で、それ自体は悪くない。でも、片付けに漏れがあると、前のリクエストの残りが次のリクエストに影響する。ここをしっかり覚えておいてほしい。</div>
+        </div>
+      </div>
+
+      <div class="note-box"><span class="nb-title">💡 ワーカーの動かし方はいろいろ</span>PHPをWebサーバーで動かす方法には、Apache というサーバーの中にPHPを組み込む <strong>mod_php</strong>、PHP専用の処理係の集まりを別に動かす <strong>PHP-FPM</strong>、そのほか FrankenPHP、LiteSpeed、php-cgi などがある。どの方法でも「何人かのワーカーを用意して使い回す」という点は共通している。動かし方によって、ワーカーを使い回す回数や、1件ごとの片付けの仕方が少しずつ違う。</div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">博士、もう1つ聞いてもいいですか？ ワーカーが使い回されるとき、何が「残って」いるんですか？ 机の上のメモというのは、コンピューターの中では何にあたるんでしょう。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">それを考えるには、コンピューターの<strong>メモリ</strong>を知る必要がある。プログラムが計算の途中のものを置いておく場所だ。次は、メモリを番号つきの箱が並んだ棚として見て、「借りる」「返す」とはどういうことかを確かめよう。</div>
+        </div>
+      </div>
+
+      <div class="formula-box">
+        <span class="step">【このステージの成果】</span>
+        <span class="step">ブラウザの頼み＝<strong>リクエスト</strong>、サーバーの返事＝<strong>レスポンス</strong></span>
+        <span class="step">PHPのプログラムを動かす処理係＝<strong>ワーカー</strong>。速さのため、1人のワーカーが何件ものリクエストを順番に引き受ける（使い回し）</span>
+        <span class="step">PHPの約束：1件ごとに、そのリクエストで使ったものを<strong>全部片付ける</strong></span>
+        <span class="step">片付けに漏れがあると、前のリクエストの残りが、同じワーカーの次のリクエストに影響する</span>
+      </div>
+
+      <h2 class="quiz-head">確認クイズ</h2>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q1. ブラウザからWebサーバーへ送られる「このページをください」という頼みを何という？</p>
+        <div class="choice-list">
+          <button class="choice-btn">レスポンス</button>
+          <button class="choice-btn">リクエスト</button>
+          <button class="choice-btn">ワーカー</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 頼みがリクエスト、サーバーからの返事がレスポンス。ワーカーはサーバーの中でリクエストを処理する係。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q2. 今のWebサーバーで、PHPのワーカーはふつうどう使われる？</p>
+        <div class="choice-list">
+          <button class="choice-btn">リクエスト1件ごとに新しいワーカーを作り、終わったら消す</button>
+          <button class="choice-btn">1人のワーカーが1人のお客さん専用になる</button>
+          <button class="choice-btn">用意しておいたワーカーが、何件ものリクエストを順番に引き受ける</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 処理係を毎回呼ぶと時間がかかるので、用意しておいたワーカーを使い回す。だから、前のリクエストの片付けが大事になる。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q3. 1件のリクエストが終わったときの、PHPの基本の約束は？</p>
+        <div class="choice-list">
+          <button class="choice-btn">そのリクエストのために使ったものを全部片付ける</button>
+          <button class="choice-btn">次のお客さんのために、メモを机に残しておく</button>
+          <button class="choice-btn">ワーカーを毎回止めて作り直す</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ リクエストごとにまっさらな机から始めるのがPHPの考え方。この片付けに漏れがあると、前のリクエストの残りが次のリクエストに影響する。</div>
+      </div>
+
+      <div class="stage-nav">
+        <a class="btn" href="index.html">← トップへ</a>
+        <button class="btn btn-primary" id="btn-next" disabled>次へ →</button>
+      </div>
+
+      <div id="book-recommend"></div>
+    </main>
+  </div>
+</div>
+
+<script src="js/progress.js?v=20261022a"></script>
+<script src="js/viz.js?v=20261022a"></script>
+<script>RQ.initStagePage(1);</script>
+<script>
+VZ.steps("v1", { w: 600, h: 250, label: "ブラウザ、受付、2人のワーカーの間をリクエストが流れる図", interval: 2400,
+  frames: [
+    { msg: "ブラウザAが「ページをください」とリクエストを送る", a: 1 },
+    { msg: "受付（Webサーバー）が、空いているワーカー1に回す", a: 2 },
+    { msg: "ワーカー1がPHPのプログラムを動かしてページを作る。作業用のメモを机に広げる", a: 3, memo: "A" },
+    { msg: "できたページを、レスポンスとしてブラウザAへ返す", a: 4, memo: "A" },
+    { msg: "ワーカー1は、Aのために使ったメモを片付ける", a: 5 },
+    { msg: "次にブラウザBのリクエストが来ると、同じワーカー1が引き受ける（使い回し）", a: 6 },
+    { msg: "Bの作業は、まっさらな机から始まる。片付けが正しくできていれば、Aの残りは何もない", a: 7, memo: "B" }
+  ],
+  draw: function (svg, f) {
+    var E = VZ.el, T = VZ.text;
+    function client(x, y, name, on) {
+      E("rect", { x: x, y: y, width: 90, height: 54, rx: 8, fill: on ? "#fde9e7" : "#fff", stroke: "#9a8f86", "stroke-width": 1.4 }, svg);
+      E("rect", { x: x + 8, y: y + 8, width: 74, height: 30, rx: 3, fill: "#e8edf3", stroke: "#b6c0cc" }, svg);
+      T(svg, x + 45, y + 48, name, { "font-size": 11 });
+    }
+    client(14, 40, "ブラウザA", f.a <= 4); client(14, 150, "ブラウザB", f.a >= 6);
+    E("rect", { x: 210, y: 70, width: 100, height: 110, rx: 10, fill: "#f3efe9", stroke: "#9a8f86", "stroke-width": 1.4 }, svg);
+    T(svg, 260, 120, "受付", { "font-size": 13 }); T(svg, 260, 138, "Webサーバー", { "font-size": 10.5, fill: "#7a716a" });
+    function worker(y, name, memo, busy) {
+      E("rect", { x: 400, y: y, width: 180, height: 80, rx: 10, fill: busy ? "#fff6e0" : "#fff", stroke: "#9a8f86", "stroke-width": 1.4 }, svg);
+      T(svg, 445, y + 22, name, { "font-size": 12 });
+      E("rect", { x: 418, y: y + 34, width: 148, height: 34, rx: 5, fill: "#ede7de", stroke: "#c9bfb3" }, svg);
+      T(svg, 492, y + 30, "机", { "font-size": 9.5, fill: "#7a716a" });
+      if (memo) {
+        E("rect", { x: 430, y: y + 39, width: 56, height: 24, rx: 3, fill: memo === "A" ? "#fde3d6" : "#dbe8f7", stroke: "#9a8f86" }, svg);
+        T(svg, 458, y + 55, (memo === "A" ? "Aの" : "Bの") + "メモ", { "font-size": 10 });
+      }
+    }
+    worker(26, "ワーカー1", f.memo, f.a === 3 || f.a === 7);
+    worker(144, "ワーカー2", null, false);
+    var A = VZ.arrow;
+    if (f.a === 1) A(svg, 106, 66, 206, 100);
+    if (f.a === 2 || f.a === 6) A(svg, 312, 110, 396, 70);
+    if (f.a === 4) { A(svg, 396, 60, 312, 96, "#3f6fb8"); A(svg, 206, 96, 108, 70, "#3f6fb8"); T(svg, 160, 60, "レスポンス", { "font-size": 10.5, fill: "#3f6fb8" }); }
+    if (f.a === 6) A(svg, 106, 176, 206, 150);
+    if (f.a === 5) T(svg, 492, 122, "片付け中……", { "font-size": 11, fill: "#a63a33" });
+  }
+});
+</script>
+</body>
+</html>

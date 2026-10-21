@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d2024">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RTQCP2HXM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9RTQCP2HXM');
+</script>
+<title>STAGE3 途中で止まる処理（エラーと後片付け） ― 片付けを忘れたサーバー</title>
+<meta name="description" content="エラーが起きると、プログラムは途中で処理をやめる。そのとき、やりかけの準備や借りたままの箱はどうなるのか。必ず後片付けをする書き方と、「準備が全部終わってから使えるようにする」という順番の大切さを学ぶ。">
+<link rel="canonical" href="https://memory-safety.habatakijuku.com/stage3">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="片付けを忘れたサーバー">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="STAGE3 途中で止まる処理（エラーと後片付け） ― 片付けを忘れたサーバー">
+<meta property="og:description" content="エラーで処理が途中で止まると、やりかけの準備が残る。必ず後片付けをする書き方と、準備の順番を学ぶ。">
+<meta property="og:url" content="https://memory-safety.habatakijuku.com/stage3">
+<meta property="og:image" content="https://memory-safety.habatakijuku.com/images/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="片付けを忘れたサーバー：番地つきの箱の棚と、途中で止められた処理係">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LearningResource",
+      "name": "STAGE3 途中で止まる処理",
+      "description": "エラーが起きると、プログラムは途中で処理をやめる。そのとき、やりかけの準備や借りたままの箱はどうなるのか。必ず後片付けをする書き方と、「準備が全部終わってから使えるようにする」という順番の大切さを学ぶ。",
+      "url": "https://memory-safety.habatakijuku.com/stage3",
+      "inLanguage": "ja",
+      "learningResourceType": "learning activity",
+      "educationalLevel": "中学生以上",
+      "isAccessibleForFree": true,
+      "position": 3,
+      "isPartOf": {
+        "@type": "LearningResource",
+        "name": "片付けを忘れたサーバー",
+        "url": "https://memory-safety.habatakijuku.com/"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "ruglerugle"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "片付けを忘れたサーバー",
+          "item": "https://memory-safety.habatakijuku.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "STAGE3 途中で止まる処理",
+          "item": "https://memory-safety.habatakijuku.com/stage3"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="design-system.css?v=20261022a">
+<style>
+  .note-box{background:#fffbe8;border:1px solid #e3d48f;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px;line-height:1.75;color:#3a3210;font-weight:700}
+  .note-box .nb-title{display:block;font-weight:950;margin-bottom:4px;color:#7a5a08}
+  .num-table{margin:10px auto 0;border-collapse:collapse;font-size:12.5px;max-width:100%}
+  .num-table th,.num-table td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+  .num-table th{background:var(--paper2);font-weight:900;color:var(--ink)}
+  .tbl-wrap{overflow-x:auto}
+  .code-box{background:#23262b;color:#e8e6e1;border-radius:10px;padding:12px 14px;margin:12px 0;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.7;text-align:left;overflow-x:auto;white-space:pre}
+  .code-box .c{color:#8d96a3}
+  .code-box .k{color:#f0a49e}
+  .code-box .s{color:#b7d99a}
+  .viz{width:100%;max-width:600px;margin:0 auto;overflow-x:auto}
+  .viz svg{display:block;width:100%;min-width:420px;height:auto;max-width:none}
+  .viz svg.narrow{min-width:0}
+  .viz-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .viz-ctl button{padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper2);color:var(--ink);font-size:12.5px;font-weight:800;cursor:pointer}
+  .viz-ctl button:hover{background:#fff}
+  .viz-ctl button:disabled{opacity:.4;cursor:default}
+  .viz-ctl .viz-count{font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;min-width:3.2em}
+  .viz-msg{margin:8px auto 0;max-width:560px;min-height:3.2em;font-size:13px;font-weight:800;line-height:1.6;color:#7d2a25;background:#fbf1f0;border:1px solid #e3bab5;border-radius:8px;padding:6px 10px}
+  .viz text{font-family:inherit}
+
+</style>
+
+</head>
+<body>
+<div class="app-shell side-collapsed" id="app-shell">
+  <header class="game-header">
+    <div class="brand">
+      <div class="brand-title"><a class="head-reset home-badge" href="index.html" title="トップへ" aria-label="トップへ">🐘</a> <span>片付けを忘れたサーバー</span></div>
+      <div class="brand-sub">STAGE 3 ― 途中で止まる処理 ―</div>
+    </div>
+    <div class="head-progress-wrap">
+      <div class="head-progress-label" id="progress-label">クリア 0 / 3</div>
+      <div class="head-progress" role="progressbar" aria-label="クリア済みステージ数" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><div class="head-progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="header-actions">
+      <button class="head-reset" id="btn-reset-all">🔄 最初から</button>
+      <button class="head-reset" id="head-nav-toggle" title="ステージ一覧の表示切替">☰ ナビ</button>
+    </div>
+  </header>
+  <div class="game-layout">
+    <div class="side-backdrop" id="side-backdrop"></div>
+    <aside class="side-panel">
+      <div class="side-head">
+        <button class="side-toggle" id="sidebar-toggle" title="ステージ一覧の表示切替" aria-label="ステージ一覧の表示切替">☰</button>
+        <span class="side-head-text">📚 ステージ一覧</span>
+      </div>
+      <div class="side-list" id="side-list"></div>
+    </aside>
+    <main class="main-area">
+      <div class="chapter-head">
+        <span class="chapter-badge">STAGE 3</span><h1 class="chapter-title">途中で止まる処理</h1>
+        <div class="chapter-sub">エラーと後片付け</div>
+      </div>
+      <div class="mission-box">
+        <div class="mission-label">🎯 ミッション</div>
+        <div class="mission-text">エラーで処理が途中で止まると<strong>やりかけの準備</strong>が残ることを説明し、<strong>必ず後片付けをする書き方</strong>（finally）と、<strong>準備が全部終わってから「できた」の印をつける</strong>順番が大切な理由を説明できれば合格。</div>
+        <span class="mission-status" id="mission-status">未達成</span>
+      </div>
+      <div class="dialogue-scene">
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt=""></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">前回、メモリ不足になるとPHPはリクエストを途中で打ち切る、という話をしたね。今日は「途中で止まる」とき何が起きるかを考えよう。メモリ不足に限らず、プログラムはいろいろなエラーで途中で止まる。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">たとえば、どんなエラーですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">読もうとしたファイルがない、0で割り算をした、時間がかかりすぎて打ち切られた、などだ。こういうとき、プログラムは続きの命令を実行せずに、エラーを処理する場所まで一気に戻る。料理の途中で火災報知器が鳴って、作業を放り出して非常口へ向かうようなものだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">放り出された作業は、どうなるんですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そこが問題なんだ。具体的に考えよう。お客さんの名簿を作る処理があるとする。手順は3つだ。<br>① 名簿用の箱を借りる<br>② 箱に名前を1人ずつ書く<br>③ 書いた人数を「人数欄」に書く<br>そして最後に、使い終わった箱を返す。</div>
+        </div>
+      </div>
+
+      <div class="diagram-box">
+        <div id="v1"></div>
+        <div class="diagram-caption">名簿を作る3つの手順の途中でエラーが起きると、処理は残りの手順をとばしてエラーを処理する場所へ戻る。最後に書いてあった「箱を返す」も実行されず、借りた箱が返されないまま残る</div>
+      </div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">②の途中でエラーが起きたら、③と「箱を返す」がとばされてしまいますね。箱は借りっぱなしになります。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。借りっぱなしの箱が少しずつたまっていくのを<strong>メモリリーク</strong>（漏れ）という。漏れが続くと、いずれ棚が足りなくなる。だから、多くのプログラミング言語には「<strong>エラーが起きても起きなくても、必ず最後にこれを実行する</strong>」という書き方が用意されている。PHPでは <code>finally</code> と書く。</div>
+        </div>
+      </div>
+
+      <div class="code-box"><span class="k">try</span> {
+    <span class="c">// ① 箱を借りる　② 名前を書く　③ 人数を書く</span>
+    名簿を作る();
+} <span class="k">finally</span> {
+    <span class="c">// エラーで途中終了しても、ここは必ず実行される</span>
+    箱を返す();
+}</div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">finally に書いておけば、非常口に向かう前に必ず箱を返してくれるんですね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">その通り。それに、PHPには前に話した「リクエストが終わったら区画の箱をまとめて返す」しくみもある。だから、返し忘れの漏れはリクエストの終わりに回収される。ここまではいいね。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">はい。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">では、もう1つの問題を考えよう。片付けの係は、名簿を片付けるときに「人数欄」を見て、何人分の箱を片付ければいいかを決めるとする。②の途中でエラーが起きたら、人数欄には何が入っているかな？</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">③は実行されていないので、人数欄にはまだ何も書かれていません。でも、前回の話だと、借りた箱には前に使った人の中身が残っているんでした。ということは、人数欄には前の誰かが残した数が入っているということですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。まだ書いていない欄には、意味のない古い数が入っている。これを<strong>ゴミ</strong>と呼ぶことが多い。片付けの係がそのゴミの数を「人数」だと信じたら、どうなると思う？</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">実際より多い人数分を片付けようとして、名簿ではない、ほかの箱まで触ってしまうかもしれません。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そうなんだ。片付けの係が、ほかの処理の箱を書き換えたり返したりしてしまう。これがメモリの中身が壊れる、ということだ。プログラムの動きは、そこから先、予想できなくなる。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">どうすれば防げるんですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">2つの考え方がある。1つは、箱を借りたらすぐに<strong>空っぽの初期値（たとえば人数0）を書いてから</strong>使い始めること。もう1つは、<strong>準備が全部終わってから「できた」の印をつけ</strong>、片付けの係は印のついたものだけを片付けることだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">準備が半分のものは、「できた」の印がないから、片付けの係は中身を信じない、ということですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。準備の途中でエラーが起きても、片付けの係が判断に使う情報だけは、いつも正しい状態にしておく。これはプログラムを安全に作るための大事な原則なんだ。</div>
+        </div>
+      </div>
+
+      <div class="note-box"><span class="nb-title">💡 C言語の「非常口」</span>PHP自体は C言語というプログラミング言語で書かれている。C言語には finally のような「必ず後片付けをする」しくみがなく、エラーのときに処理の途中から一気に別の場所へ飛ぶ setjmp／longjmp という道具がある。速くて便利だが、飛ぶ前にやりかけていた準備や片付けは、すべてプログラマーが自分で面倒を見なければならない。</div>
+
+      <div class="formula-box">
+        <span class="step">【このステージの成果】</span>
+        <span class="step">エラーが起きると、プログラムは残りの命令をとばしてエラーを処理する場所へ戻る</span>
+        <span class="step">とばされた「箱を返す」は実行されない → 借りっぱなし＝<strong>メモリリーク</strong>。<code>finally</code> で必ず後片付けをする</span>
+        <span class="step">まだ書いていない欄には前の中身（<strong>ゴミ</strong>）が入っている。片付けの係がそれを信じると、ほかの箱を壊す</span>
+        <span class="step">原則：借りたら<strong>すぐ初期値を書く</strong>／準備が<strong>全部終わってから</strong>「できた」の印をつける</span>
+      </div>
+
+      <h2 class="quiz-head">確認クイズ</h2>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q1. 処理の途中でエラーが起きたとき、ふつうのプログラムの動きは？</p>
+        <div class="choice-list">
+          <button class="choice-btn">残りの命令をとばして、エラーを処理する場所へ戻る</button>
+          <button class="choice-btn">エラーを無視して最後まで実行する</button>
+          <button class="choice-btn">最初からやり直す</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 残りの命令はとばされる。そのため、最後に書いた「箱を返す」なども実行されないことがある。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q2. finally に書いた処理は、いつ実行される？</p>
+        <div class="choice-list">
+          <button class="choice-btn">エラーが起きなかったときだけ</button>
+          <button class="choice-btn">エラーが起きたときだけ</button>
+          <button class="choice-btn">エラーが起きても起きなくても、必ず</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ どんな終わり方でも必ず実行されるので、後片付けを書くのに向いている。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q3. 準備の途中でエラーが起きても、片付けの係が間違えないようにするには？</p>
+        <div class="choice-list">
+          <button class="choice-btn">片付けの係は、借りた箱の中身をそのまま信じる</button>
+          <button class="choice-btn">借りたらすぐ初期値を書き、準備が全部終わってから「できた」の印をつける</button>
+          <button class="choice-btn">エラーが起きたら、片付けをしないでおく</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ まだ書いていない欄にはゴミが入っている。判断に使う情報を、いつも正しい状態にしておくのが原則。</div>
+      </div>
+
+      <div class="stage-nav">
+        <a class="btn" href="index.html">← トップへ</a>
+        <button class="btn btn-primary" id="btn-next" disabled>次へ →</button>
+      </div>
+
+      <div id="book-recommend"></div>
+    </main>
+  </div>
+</div>
+
+<script src="js/progress.js?v=20261022a"></script>
+<script src="js/viz.js?v=20261022a"></script>
+<script>RQ.initStagePage(3);</script>
+<script>
+VZ.steps("v1", { w: 600, h: 230, label: "名簿を作る3つの手順と、途中でエラーが起きたときにとばされる手順", interval: 2400,
+  frames: [
+    { msg: "これから実行する手順。上から順に進む", at: -1 },
+    { msg: "① 名簿用の箱を借りる", at: 0 },
+    { msg: "② 名前を1人ずつ書いていく……", at: 1 },
+    { msg: "② の途中でエラー！　残りの手順をとばして、エラーを処理する場所へ戻る", at: 1, err: true },
+    { msg: "③「人数を書く」と「箱を返す」は実行されないまま。箱は借りっぱなしになる", at: 1, err: true, after: true }
+  ],
+  draw: function (svg, f) {
+    var steps = ["① 名簿用の箱を借りる", "② 名前を1人ずつ書く", "③ 人数欄に人数を書く", "④ 箱を返す"];
+    steps.forEach(function (s, i) {
+      var y = 24 + i * 46, done = i < f.at || (i === f.at && !f.err), cur = i === f.at, skip = f.err && i > f.at;
+      VZ.el("rect", { x: 40, y: y, width: 300, height: 36, rx: 8,
+        fill: skip ? "#f1eee9" : cur ? (f.err ? "#fde3d6" : "#fff6e0") : done ? "#e8f3ea" : "#fff",
+        stroke: cur && f.err ? "#a63a33" : "#9a8f86", "stroke-width": cur && f.err ? 2 : 1.4, "stroke-dasharray": skip ? "5 4" : "" }, svg);
+      VZ.text(svg, 190, y + 23, s + (skip ? "（とばされる）" : ""), { "font-size": 12.5, fill: skip ? "#9a918a" : "#2a2522" });
+    });
+    VZ.el("rect", { x: 420, y: 82, width: 150, height: 60, rx: 10, fill: f.err ? "#fde3d6" : "#f3efe9", stroke: "#9a8f86" }, svg);
+    VZ.text(svg, 495, 108, "エラーを", { "font-size": 12 });
+    VZ.text(svg, 495, 125, "処理する場所", { "font-size": 12 });
+    if (f.err) VZ.arrow(svg, 342, 24 + f.at * 46 + 18, 416, 112, "#a63a33");
+    if (f.after) VZ.text(svg, 495, 170, "箱は借りっぱなし", { "font-size": 11.5, fill: "#a63a33" });
+  }
+});
+</script>
+</body>
+</html>

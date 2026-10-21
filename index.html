@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d2024">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RTQCP2HXM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9RTQCP2HXM');
+</script>
+<title>片付けを忘れたサーバー ― Webサーバーとメモリのしくみを学ぶ全3ステージの無料学習ゲーム</title>
+<meta name="description" content="Webページが届くまでにサーバーの中で何が起きているのか。リクエストとワーカーの使い回し、番地つきの箱が並ぶメモリの棚、エラーで処理が途中で止まったときの後片付けまで、Webサーバーとメモリのしくみを全3ステージで中学生にもわかるように解説。">
+<link rel="canonical" href="https://memory-safety.habatakijuku.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="片付けを忘れたサーバー">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="片付けを忘れたサーバー ― Webサーバーとメモリのしくみを学ぶ全3ステージの無料学習ゲーム">
+<meta property="og:description" content="リクエストとワーカー、番地つきの箱の棚、エラーと後片付け。Webサーバーの中で起きていることを全3ステージで。">
+<meta property="og:url" content="https://memory-safety.habatakijuku.com/">
+<meta property="og:image" content="https://memory-safety.habatakijuku.com/images/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="片付けを忘れたサーバー：番地つきの箱の棚と、途中で止められた処理係">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<link rel="stylesheet" href="design-system.css?v=20261022a">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LearningResource",
+  "name": "片付けを忘れたサーバー",
+  "alternateName": "MEMORY SAFETY QUEST",
+  "description": "Webサーバーの中のしくみ（リクエスト・ワーカーの使い回し）、メモリ（番地・確保と解放・返した箱に残る中身・メモリの上限）、エラーで処理が途中で止まったときの後片付けを学ぶ全3ステージの無料学習ゲーム。",
+  "url": "https://memory-safety.habatakijuku.com/",
+  "inLanguage": "ja",
+  "learningResourceType": "learning activity",
+  "educationalLevel": "中学生以上",
+  "teaches": "リクエストとレスポンス・ワーカーの使い回し・メモリの番地・メモリの確保と解放・memory_limit とメモリ不足・エラーと後片付け・finally・初期化の順番",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "ruglerugle" },
+  "hasPart": [
+    { "@type": "LearningResource", "position": 1, "name": "STAGE1 Webサーバーの中", "url": "https://memory-safety.habatakijuku.com/stage1" },
+    { "@type": "LearningResource", "position": 2, "name": "STAGE2 メモリという棚", "url": "https://memory-safety.habatakijuku.com/stage2" },
+    { "@type": "LearningResource", "position": 3, "name": "STAGE3 途中で止まる処理", "url": "https://memory-safety.habatakijuku.com/stage3" }
+  ]
+}
+</script>
+<style>
+  .hero-shelf{width:min(100%,340px);height:auto;display:block;margin:0 auto 8px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.35))}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="topbar" aria-label="サイト情報">
+    <span class="brand-badge" aria-hidden="true">🗄️</span>
+    <span class="brand-copy">
+      <strong>片付けを忘れたサーバー</strong>
+      <small>MEMORY SAFETY QUEST</small>
+    </span>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-copy">
+      <svg class="hero-shelf" viewBox="0 0 340 120" aria-hidden="true">
+        <rect x="0" y="0" width="340" height="120" rx="14" fill="#fdfbf7"/>
+        <g font-size="10" font-weight="800" text-anchor="middle" fill="#7a716a">
+          <text x="38" y="30">101</text><text x="82" y="30">102</text><text x="126" y="30">103</text><text x="170" y="30">104</text><text x="214" y="30">105</text><text x="258" y="30">106</text><text x="302" y="30">107</text>
+        </g>
+        <g stroke="#9a8f86" stroke-width="1.4">
+          <rect x="18" y="38" width="40" height="40" rx="6" fill="#fde3d6"/><rect x="62" y="38" width="40" height="40" rx="6" fill="#fde3d6"/><rect x="106" y="38" width="40" height="40" rx="6" fill="#fde3d6"/>
+          <rect x="150" y="38" width="40" height="40" rx="6" fill="#f1eee9" stroke-dasharray="4 3"/><rect x="194" y="38" width="40" height="40" rx="6" fill="#dbe8f7"/><rect x="238" y="38" width="40" height="40" rx="6" fill="#dbe8f7"/><rect x="282" y="38" width="40" height="40" rx="6" fill="#fff"/>
+        </g>
+        <g font-size="15" font-weight="800" text-anchor="middle" fill="#2a2522">
+          <text x="38" y="64">た</text><text x="82" y="64">ぬ</text><text x="126" y="64">き</text><text x="170" y="64" fill="#9a918a">？</text><text x="214" y="64">い</text><text x="258" y="64">ぬ</text>
+        </g>
+        <text x="170" y="104" font-size="11" font-weight="800" text-anchor="middle" fill="#a63a33">返した箱にも、中身は残っている</text>
+      </svg>
+      <h1><span class="line">Webサーバーは、</span><span class="line accent">毎回ちゃんと片付けている？</span></h1>
+      <p>ページを開くたびに、サーバーの中では処理係が<span class="nowrap">メモリの箱を借りて、使って、返している。</span><span class="nowrap">返した箱の中身は消えない。</span><span class="nowrap">エラーで作業が途中で止まることもある。</span>ニュースで「重大な脆弱性」と聞くときに知っておきたい、サーバーとメモリの基本のしくみを、自分の手で確かめよう。</p>
+    </div>
+  </header>
+  <main>
+    <section class="board" aria-labelledby="quest-heading">
+      <div class="board-head">
+        <div><h2 id="quest-heading">クエストを選ぼう！</h2></div>
+        <p>ステージ1から順番にクリアしよう（前のステージをクリアすると次が解放されます）。プログラミングの知識はなくてもだいじょうぶ。</p>
+      </div>
+      <div class="quest-grid">
+        <a class="quest-card" href="stage1.html" data-stage="1" style="--accent:#a63a33;--accent-bg:#fbeeed">
+          <div class="q-top"><span class="q-num">1</span><span class="q-suit" aria-hidden="true">🖥️</span></div>
+          <div class="q-meta"><span class="q-tag">リクエストとワーカー</span><span class="q-time">⏱ 約10分</span></div>
+          <div class="q-title">Webサーバーの中</div>
+          <p class="q-desc">ブラウザの頼みは、サーバーの中の処理係（ワーカー）が引き受ける。1人のワーカーが何人ものお客さんの頼みを順番に処理する「使い回し」と、1件ごとの片付けの約束。</p>
+          <span class="q-cta">はじめる →</span>
+        </a>
+        <a class="quest-card" href="stage2.html" data-stage="2" style="--accent:#3f5fa6;--accent-bg:#e9eef9">
+          <div class="q-top"><span class="q-num">2</span><span class="q-suit" aria-hidden="true">🗄️</span></div>
+          <div class="q-meta"><span class="q-tag">番地・確保と解放</span><span class="q-time">⏱ 約12分</span></div>
+          <div class="q-title">メモリという棚</div>
+          <p class="q-desc">メモリは番地つきの箱の棚。管理係に頼んで箱を借り、使い終わったら返す。返した箱の中身は消されない。1件のリクエストが借りられる量の上限と、メモリ不足。</p>
+          <span class="q-cta">はじめる →</span>
+        </a>
+        <a class="quest-card" href="stage3.html" data-stage="3" style="--accent:#7a6a2f;--accent-bg:#f7f3e2">
+          <div class="q-top"><span class="q-num">3</span><span class="q-suit" aria-hidden="true">🚨</span></div>
+          <div class="q-meta"><span class="q-tag">エラーと後片付け</span><span class="q-time">⏱ 約12分</span></div>
+          <div class="q-title">途中で止まる処理</div>
+          <p class="q-desc">エラーが起きると、残りの手順はとばされる。借りっぱなしの箱、まだ書いていない欄のゴミ。必ず後片付けをする finally と、「準備が全部終わってから印をつける」順番の大切さ。</p>
+          <span class="q-cta">はじめる →</span>
+        </a>
+      </div>
+    </section>
+    <section class="board" aria-labelledby="next-heading" style="margin-top:16px">
+      <div class="board-head">
+        <div><h2 id="next-heading">バックナンバー</h2></div>
+        <p>同じねこ博士とうさ美が案内する、姉妹サイトの学習クエスト</p>
+      </div>
+      <div class="quest-grid">
+        <a class="quest-card" href="https://physics-engine.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#2f7a55;--accent-bg:#e4f3ea">
+          <div class="q-top"><span class="q-num">🥋</span><span class="q-suit" aria-hidden="true">🌀</span></div>
+          <div class="q-meta"><span class="q-tag">3Dの数学</span><span class="q-time">全9ステージ</span></div>
+          <div class="q-title">チート900を数式で動かす</div>
+          <p class="q-desc">空中で2回転半する蹴り技の3Dアニメーションを、ベクトル・行列・四元数・角運動量で動かす。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+        <a class="quest-card" href="https://rotary-engine.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#3d5f88;--accent-bg:#e6eef7">
+          <div class="q-top"><span class="q-num">⚙</span><span class="q-suit" aria-hidden="true">🍙</span></div>
+          <div class="q-meta"><span class="q-tag">作図</span><span class="q-time">全8ステージ</span></div>
+          <div class="q-title">ロータリーエンジンを作図する</div>
+          <p class="q-desc">繭形のハウジングと三角おむすびのローターを、座標と cos・sin だけで描く。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+        <a class="quest-card" href="https://quantum-mechanics.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#1f7488;--accent-bg:#e4f2f5">
+          <div class="q-top"><span class="q-num">⚛</span><span class="q-suit" aria-hidden="true">🌌</span></div>
+          <div class="q-meta"><span class="q-tag">量子力学</span><span class="q-time">全9クエスト</span></div>
+          <div class="q-title">量子力学、冒険の書</div>
+          <p class="q-desc">二重スリットから量子コンピュータの回路作りまで、9つのクエストでたどる量子力学のシリーズマップ。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+      </div>
+    </section>
+    <div id="book-recommend"></div>
+  </main>
+  <footer>
+    <p>NO DOWNLOAD. NO REGISTRATION. JUST LEARN. &nbsp;© <span id="year"></span> ruglerugle</p>
+    <div class="footer-suits" aria-hidden="true"><span>🖥️</span><span>🗄️</span><span>🚨</span></div>
+  </footer>
+</div>
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+<script src="js/progress.js?v=20261022a"></script>
+<script>RQ.initCoverPage();</script>
+</body>
+</html>

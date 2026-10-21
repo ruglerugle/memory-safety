@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d2024">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RTQCP2HXM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9RTQCP2HXM');
+</script>
+<title>全ステージクリア ― 片付けを忘れたサーバー</title>
+<meta name="description" content="片付けを忘れたサーバー、全3ステージクリアおめでとう。ここまでの旅を振り返ろう。">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://memory-safety.habatakijuku.com/complete">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="片付けを忘れたサーバー">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="全ステージクリア ― 片付けを忘れたサーバー">
+<meta property="og:description" content="全3ステージクリアおめでとう。旅を振り返ろう。">
+<meta property="og:url" content="https://memory-safety.habatakijuku.com/complete">
+<meta property="og:image" content="https://memory-safety.habatakijuku.com/images/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="片付けを忘れたサーバー：番地つきの箱の棚と、途中で止められた処理係">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<link rel="stylesheet" href="design-system.css?v=20261022a">
+</head>
+<body>
+<div class="shell">
+  <nav class="topbar" aria-label="サイト情報">
+    <a class="brand-badge" href="index.html" title="トップへ" aria-label="トップへ" style="text-decoration:none">🗄️</a>
+    <span class="brand-copy">
+      <strong>片付けを忘れたサーバー</strong>
+      <small>MEMORY SAFETY QUEST</small>
+    </span>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-copy">
+      <h1><span class="line">借りて、使って、</span><span class="line accent">きちんと返す。</span></h1>
+      <p>リクエストとワーカーの使い回し、番地つきの箱の棚、エラーで止まったときの後片付け。きみは、Webサーバーが毎回の頼みをどう引き受けて、どう片付けているのかを、ひとつずつ確かめた。旅の記録で振り返ろう。</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="board" aria-labelledby="recap-heading">
+      <div class="board-head">
+        <div><h2 id="recap-heading">ここまでの旅を振り返ろう</h2></div>
+      </div>
+
+      <div class="recap-list">
+        <div class="recap-item">
+          <span class="recap-num">1</span>
+          <div class="recap-body"><span class="recap-title">Webサーバーの中。</span> <span class="recap-desc">ブラウザの頼みがリクエスト、返事がレスポンス。用意しておいたワーカーが何件ものリクエストを順番に引き受け、1件ごとに使ったものを全部片付ける。</span></div>
+        </div>
+        <div class="recap-item">
+          <span class="recap-num">2</span>
+          <div class="recap-body"><span class="recap-title">メモリという棚。</span> <span class="recap-desc">メモリは番地つきの箱の棚。借りる＝確保、返す＝解放。返した箱の中身は消されない。1件が借りられる量には memory_limit の上限があり、超えるとメモリ不足（OOM）で打ち切り。</span></div>
+        </div>
+        <div class="recap-item">
+          <span class="recap-num">3</span>
+          <div class="recap-body"><span class="recap-title">途中で止まる処理。</span> <span class="recap-desc">エラーが起きると残りの手順はとばされる。finally で必ず後片付けをする。まだ書いていない欄にはゴミが入っているので、借りたらすぐ初期値を書き、準備が全部終わってから「できた」の印をつける。</span></div>
+        </div>
+      </div>
+
+      <div class="complete-actions">
+        <a class="btn btn-primary" id="btn-share" href="#" target="_blank" rel="noopener">𝕏 クリアをシェアする</a>
+        <a class="btn" href="index.html">トップに戻る →</a>
+        <button class="btn" id="btn-reset-all">🔄 進捗をリセットして最初から</button>
+      </div>
+    </section>
+
+    <section class="board" aria-labelledby="next-heading" style="margin-top:16px">
+      <div class="board-head">
+        <div><h2 id="next-heading">バックナンバー</h2></div>
+        <p>同じねこ博士とうさ美が案内する、姉妹サイトの学習クエスト</p>
+      </div>
+      <div class="quest-grid">
+        <a class="quest-card" href="https://rotary-engine.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#3d5f88;--accent-bg:#e6eef7">
+          <div class="q-top"><span class="q-num">⚙</span><span class="q-suit" aria-hidden="true">🍙</span></div>
+          <div class="q-meta"><span class="q-tag">作図</span><span class="q-time">全8ステージ</span></div>
+          <div class="q-title">ロータリーエンジンを作図する</div>
+          <p class="q-desc">繭形のハウジングと三角おむすびのローターを、座標と cos・sin だけで描く。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+        <a class="quest-card" href="https://physics-engine.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#2f7a55;--accent-bg:#e4f3ea">
+          <div class="q-top"><span class="q-num">🥋</span><span class="q-suit" aria-hidden="true">🌀</span></div>
+          <div class="q-meta"><span class="q-tag">3Dの数学</span><span class="q-time">全9ステージ</span></div>
+          <div class="q-title">チート900を数式で動かす</div>
+          <p class="q-desc">空中で2回転半する蹴り技の3Dアニメーションを、ベクトル・行列・四元数・角運動量で動かす。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+        <a class="quest-card" href="https://quantum-mechanics.habatakijuku.com/" target="_blank" rel="noopener" style="--accent:#1f7488;--accent-bg:#e4f2f5">
+          <div class="q-top"><span class="q-num">⚛</span><span class="q-suit" aria-hidden="true">🌌</span></div>
+          <div class="q-meta"><span class="q-tag">量子力学</span><span class="q-time">全9クエスト</span></div>
+          <div class="q-title">量子力学、冒険の書</div>
+          <p class="q-desc">二重スリットから量子コンピュータの回路作りまで、9つのクエストでたどる量子力学のシリーズマップ。</p>
+          <span class="q-cta">読む →</span>
+        </a>
+      </div>
+    </section>
+    <div id="book-recommend"></div>
+  </main>
+
+  <footer>
+    <p>NO DOWNLOAD. NO REGISTRATION. JUST LEARN. &nbsp;© <span id="year"></span> ruglerugle</p>
+    <div class="footer-suits" aria-hidden="true"><span>🖥️</span><span>🗄️</span><span>🚨</span></div>
+  </footer>
+</div>
+
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+  document.getElementById("btn-share").href =
+    "https://twitter.com/intent/tweet?text=" +
+    encodeURIComponent("「片付けを忘れたサーバー」全3ステージをクリア！ リクエストとワーカー、メモリの棚、エラーと後片付けで、Webサーバーの中のしくみがわかりました🗄️") +
+    "&url=" + encodeURIComponent("https://memory-safety.habatakijuku.com/");
+</script>
+<script src="js/progress.js?v=20261022a"></script>
+<script>RQ.initCompletePage();</script>
+</body>
+</html>

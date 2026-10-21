@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://memory-safety.habatakijuku.com/sitemap.xml

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d2024">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RTQCP2HXM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9RTQCP2HXM');
+</script>
+<title>STAGE2 メモリという棚（借りる・返す・中身が残る） ― 片付けを忘れたサーバー</title>
+<meta name="description" content="コンピューターのメモリを、番号（番地）つきの箱が並んだ棚として考える。プログラムが箱を借りて返すしくみと、返した箱にも中身が残ること、1件のリクエストが借りられる量の上限まで。">
+<link rel="canonical" href="https://memory-safety.habatakijuku.com/stage2">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="片付けを忘れたサーバー">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:title" content="STAGE2 メモリという棚（借りる・返す・中身が残る） ― 片付けを忘れたサーバー">
+<meta property="og:description" content="メモリは番地つきの箱の棚。借りる・返す・返しても中身は消えない、という性質を学ぶ。">
+<meta property="og:url" content="https://memory-safety.habatakijuku.com/stage2">
+<meta property="og:image" content="https://memory-safety.habatakijuku.com/images/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="片付けを忘れたサーバー：番地つきの箱の棚と、途中で止められた処理係">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "LearningResource",
+      "name": "STAGE2 メモリという棚",
+      "description": "コンピューターのメモリを、番号（番地）つきの箱が並んだ棚として考える。プログラムが箱を借りて返すしくみと、返した箱にも中身が残ること、1件のリクエストが借りられる量の上限まで。",
+      "url": "https://memory-safety.habatakijuku.com/stage2",
+      "inLanguage": "ja",
+      "learningResourceType": "learning activity",
+      "educationalLevel": "中学生以上",
+      "isAccessibleForFree": true,
+      "position": 2,
+      "isPartOf": {
+        "@type": "LearningResource",
+        "name": "片付けを忘れたサーバー",
+        "url": "https://memory-safety.habatakijuku.com/"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "ruglerugle"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "片付けを忘れたサーバー",
+          "item": "https://memory-safety.habatakijuku.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "STAGE2 メモリという棚",
+          "item": "https://memory-safety.habatakijuku.com/stage2"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="design-system.css?v=20261022a">
+<style>
+  .note-box{background:#fffbe8;border:1px solid #e3d48f;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:13.5px;line-height:1.75;color:#3a3210;font-weight:700}
+  .note-box .nb-title{display:block;font-weight:950;margin-bottom:4px;color:#7a5a08}
+  .num-table{margin:10px auto 0;border-collapse:collapse;font-size:12.5px;max-width:100%}
+  .num-table th,.num-table td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+  .num-table th{background:var(--paper2);font-weight:900;color:var(--ink)}
+  .tbl-wrap{overflow-x:auto}
+  .code-box{background:#23262b;color:#e8e6e1;border-radius:10px;padding:12px 14px;margin:12px 0;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.7;text-align:left;overflow-x:auto;white-space:pre}
+  .code-box .c{color:#8d96a3}
+  .code-box .k{color:#f0a49e}
+  .code-box .s{color:#b7d99a}
+  .viz{width:100%;max-width:600px;margin:0 auto;overflow-x:auto}
+  .viz svg{display:block;width:100%;min-width:420px;height:auto;max-width:none}
+  .viz svg.narrow{min-width:0}
+  .viz-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .viz-ctl button{padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper2);color:var(--ink);font-size:12.5px;font-weight:800;cursor:pointer}
+  .viz-ctl button:hover{background:#fff}
+  .viz-ctl button:disabled{opacity:.4;cursor:default}
+  .viz-ctl .viz-count{font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;min-width:3.2em}
+  .viz-msg{margin:8px auto 0;max-width:560px;min-height:3.2em;font-size:13px;font-weight:800;line-height:1.6;color:#7d2a25;background:#fbf1f0;border:1px solid #e3bab5;border-radius:8px;padding:6px 10px}
+  .viz text{font-family:inherit}
+
+</style>
+
+</head>
+<body>
+<div class="app-shell side-collapsed" id="app-shell">
+  <header class="game-header">
+    <div class="brand">
+      <div class="brand-title"><a class="head-reset home-badge" href="index.html" title="トップへ" aria-label="トップへ">🐘</a> <span>片付けを忘れたサーバー</span></div>
+      <div class="brand-sub">STAGE 2 ― メモリという棚 ―</div>
+    </div>
+    <div class="head-progress-wrap">
+      <div class="head-progress-label" id="progress-label">クリア 0 / 3</div>
+      <div class="head-progress" role="progressbar" aria-label="クリア済みステージ数" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><div class="head-progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="header-actions">
+      <button class="head-reset" id="btn-reset-all">🔄 最初から</button>
+      <button class="head-reset" id="head-nav-toggle" title="ステージ一覧の表示切替">☰ ナビ</button>
+    </div>
+  </header>
+  <div class="game-layout">
+    <div class="side-backdrop" id="side-backdrop"></div>
+    <aside class="side-panel">
+      <div class="side-head">
+        <button class="side-toggle" id="sidebar-toggle" title="ステージ一覧の表示切替" aria-label="ステージ一覧の表示切替">☰</button>
+        <span class="side-head-text">📚 ステージ一覧</span>
+      </div>
+      <div class="side-list" id="side-list"></div>
+    </aside>
+    <main class="main-area">
+      <div class="chapter-head">
+        <span class="chapter-badge">STAGE 2</span><h1 class="chapter-title">メモリという棚</h1>
+        <div class="chapter-sub">借りる・返す・中身が残る</div>
+      </div>
+      <div class="mission-box">
+        <div class="mission-label">🎯 ミッション</div>
+        <div class="mission-text">メモリを<strong>番地つきの箱の棚</strong>として説明し、「借りる」「返す」の意味と、<strong>返した箱にも中身が残る</strong>こと、1件のリクエストが借りられる量に<strong>上限</strong>があることを説明できれば合格。</div>
+        <span class="mission-status" id="mission-status">未達成</span>
+      </div>
+      <div class="dialogue-scene">
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt=""></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">前回の「机の上のメモ」の正体を考えよう。コンピューターには<strong>メモリ</strong>という部品がある。プログラムが動いている間、計算の途中の数や文字を置いておく作業場所だ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">パソコンの説明に「メモリ16GB」と書いてあるものですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう、それだ。メモリは、小さな箱が一列にずらっと並んだ巨大な棚だと思えばいい。箱1つには0から255までの数が1つ入る。この箱1つ分の大きさを<strong>1バイト</strong>という。16GBなら、箱がおよそ160億個並んでいることになる。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">160億個も！ そんなにたくさんあったら、どの箱に何を入れたか分からなくなりそうです。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">だから、どの箱にも端から順に番号がついている。この番号を<strong>番地</strong>（アドレス）という。プログラムは「1000番の箱に5を入れる」「1000番の箱の中身を読む」というように、番地で箱を指定して使うんだ。</div>
+        </div>
+      </div>
+
+      <div class="diagram-box">
+        <div id="v1"></div>
+        <div class="diagram-caption">番地つきの箱の棚。プログラムは「何個分の箱がほしい」と管理係に頼み、空いている箱をまとめて借りる。使い終わったら返す。返した箱は、中身が消されないまま「空き」の印だけがつく</div>
+      </div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">箱は、プログラムが好きなところを勝手に使っていいんですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">勝手に使うと、ほかの処理が使っている箱を上書きしてしまう。だから、棚には<strong>管理係</strong>がいる。プログラムは「箱を8個ください」と管理係に頼み、空いている箱をまとめて借りる。これを<strong>メモリの確保</strong>という。使い終わったら「返します」と言って返す。これが<strong>メモリの解放</strong>だ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">図書館で本を借りて返すのに似ていますね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そうだね。ただ、図書館と違う点が1つある。返した箱の中身は、<strong>消されない</strong>んだ。管理係は帳簿に「この箱は空き」と印をつけるだけで、中に入っていた数はそのまま残る。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">どうして消さないんですか？ 消したほうが安全な気がします。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">速さのためだよ。プログラムは1秒に何百万回も箱を借りたり返したりする。そのたびに中身を0で塗りつぶしていたら、それだけで時間がかかる。次に借りた人は、どうせ自分の値で上書きしてから使う。だから消さない。ふつうはそれで困らないんだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">「ふつうは」ということは、困る場合があるんですね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">ある。たとえば、借りた箱にまだ何も書いていないのに、書いたつもりで中身を読んでしまう場合だ。その話は、処理が途中で止まるときのことを考えるときにしよう。先に、PHPでの箱の借り方を見ておきたい。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">お願いします。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">PHPは、リクエストを1件受けるたびに、そのリクエスト専用の箱の区画を用意する。プログラムの中で文字や配列を作るたびに、その区画から箱を借りる。そしてリクエストが終わると、<strong>区画の箱をまとめて返す</strong>。1つずつ返し忘れがあっても、最後にまとめて返すから漏れない、という作りだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">前回の「1件ごとに全部片付ける」の約束は、この「まとめて返す」のことなんですね。</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">その通り。それからもう1つ。1件のリクエストが借りられる箱の数には<strong>上限</strong>がある。PHPでは <code>memory_limit</code> という設定で決める。たとえば128MBなら、1件で約1億3千万個の箱までだ。</div>
+        </div>
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">上限がないと、どうなるんですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">1件のリクエストが、ばかでかいデータを送りつけられたりして箱をどんどん借りると、ほかのリクエストの分まで使い切ってしまう。サーバー全体が止まりかねない。だから上限を決めておいて、超えそうになったらそのリクエストを打ち切る。この状態を<strong>メモリ不足</strong>、英語の Out Of Memory を略して <strong>OOM</strong> という。</div>
+        </div>
+      </div>
+
+      <div class="code-box"><span class="c">; php.ini の設定の例（1件のリクエストが借りられる上限）</span>
+memory_limit = <span class="s">128M</span>
+
+<span class="c">; 上限を超えると、PHPはこういうエラーを出してそのリクエストを打ち切る</span>
+Fatal error: Allowed memory size of 134217728 bytes exhausted</div>
+
+      <div class="dialogue-scene">
+        <div class="dialog-row right">
+          <div class="dialog-character">
+            <div class="dialog-avatar student"><img src="images/rabbit.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name student">うさ美</div>
+          </div>
+          <div class="dialog-bubble">打ち切る、というのは、プログラムの途中でいきなり止めるということですか？</div>
+        </div>
+        <div class="dialog-row">
+          <div class="dialog-character">
+            <div class="dialog-avatar mentor"><img src="images/cat.webp" width="300" height="386" alt="" loading="lazy" decoding="async"></div>
+            <div class="dialog-name mentor">ねこ博士</div>
+          </div>
+          <div class="dialog-bubble">そう。そして、この「途中でいきなり止める」というのが、片付けを難しくする原因の1つなんだ。次は、処理が途中で止まるとき、プログラムの中で何が起きるのかを見よう。</div>
+        </div>
+      </div>
+
+      <div class="formula-box">
+        <span class="step">【このステージの成果】</span>
+        <span class="step">メモリ＝番地つきの箱の棚。箱1つが<strong>1バイト</strong>（0〜255の数が1つ）</span>
+        <span class="step">管理係に頼んで箱を借りる＝<strong>確保</strong>、返す＝<strong>解放</strong></span>
+        <span class="step">返した箱の中身は<strong>消されない</strong>（速さのため。「空き」の印がつくだけ）</span>
+        <span class="step">PHPはリクエストごとの区画から箱を借り、終わると<strong>まとめて返す</strong></span>
+        <span class="step">1件が借りられる量には上限（<code>memory_limit</code>）。超えると<strong>メモリ不足（OOM）</strong>で打ち切り</span>
+      </div>
+
+      <h2 class="quiz-head">確認クイズ</h2>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q1. メモリの箱1つずつについている番号を何という？</p>
+        <div class="choice-list">
+          <button class="choice-btn">バイト</button>
+          <button class="choice-btn">リクエスト</button>
+          <button class="choice-btn">番地（アドレス）</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 箱の番号が番地。バイトは箱1つ分の大きさの単位。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q2. プログラムが借りていた箱を返した（解放した）とき、箱の中身はどうなる？</p>
+        <div class="choice-list">
+          <button class="choice-btn">消されずにそのまま残り、「空き」の印だけがつく</button>
+          <button class="choice-btn">すぐに0で塗りつぶされる</button>
+          <button class="choice-btn">箱ごと棚からなくなる</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 毎回消すと時間がかかるので、中身は残る。次に借りた人が上書きしてから使うので、ふつうは困らない。</div>
+      </div>
+      <div class="quiz-card" data-quiz>
+        <p class="quiz-q">Q3. 1件のリクエストが借りようとした箱が memory_limit を超えると、どうなる？</p>
+        <div class="choice-list">
+          <button class="choice-btn">上限が自動で2倍になって続く</button>
+          <button class="choice-btn">メモリ不足（OOM）として、そのリクエストが途中で打ち切られる</button>
+          <button class="choice-btn">ほかのリクエストの箱を借りて続く</button>
+        </div>
+        <div class="quiz-explain" hidden>正解！ 1件がメモリを使い切ってサーバー全体を止めないよう、上限を超えたらそのリクエストを打ち切る。</div>
+      </div>
+
+      <div class="stage-nav">
+        <a class="btn" href="index.html">← トップへ</a>
+        <button class="btn btn-primary" id="btn-next" disabled>次へ →</button>
+      </div>
+
+      <div id="book-recommend"></div>
+    </main>
+  </div>
+</div>
+
+<script src="js/progress.js?v=20261022a"></script>
+<script src="js/viz.js?v=20261022a"></script>
+<script>RQ.initStagePage(2);</script>
+<script>
+VZ.steps("v1", { w: 480, h: 250, narrow: true, label: "番地つきの箱の棚で、箱を借りて返す様子", interval: 2400,
+  frames: [
+    { msg: "番地つきの箱が並んだ棚。いまはどの箱も空いている", st: "......" },
+    { msg: "プログラムAが「箱を3個ください」と頼み、101〜103番を借りる", st: "AAA...", lend: [0, 3] },
+    { msg: "Aは借りた箱に「たぬき」という文字を書き込む", st: "AAA...", data: { 0: "た", 1: "ぬ", 2: "き" } },
+    { msg: "Aは使い終わって箱を返す。中身は消されず「空き」の印がつくだけ", st: "fff...", data: { 0: "た", 1: "ぬ", 2: "き" } },
+    { msg: "プログラムBが箱を2個借りる。管理係は、空いている101〜102番を貸す", st: "BBf...", data: { 0: "た", 1: "ぬ", 2: "き" } },
+    { msg: "Bは自分の値（い・ぬ）で上書きしてから使う。上書きした箱では前の中身は見えなくなるが、返されたままの103番には「き」が残っている", st: "BBf...", data: { 0: "い", 1: "ぬ", 2: "き" } }
+  ],
+  draw: function (svg, f) {
+    var cells = [];
+    for (var i = 0; i < 6; i++) {
+      var c = f.st[i], d = f.data && f.data[i];
+      var cell = { fill: "#fff", label: d || "", sub: "", fs: 20 };
+      if (c === "A") { cell.fill = "#fde3d6"; cell.sub = "A使用中"; }
+      if (c === "B") { cell.fill = "#dbe8f7"; cell.sub = "B使用中"; }
+      if (c === "f") { cell.fill = "#f1eee9"; cell.sub = "空き"; cell.color = "#8a817a"; cell.dash = "4 3"; }
+      cells.push(cell);
+    }
+    VZ.text(svg, 240, 30, "メモリの棚（上の数が番地）", { "font-size": 16 });
+    var sh = VZ.shelf(svg, 18, 72, cells, { w: 68, h: 70, gap: 6, start: 101, numFs: 14, subFs: 12.5 });
+    VZ.el("rect", { x: 60, y: 172, width: 360, height: 62, rx: 10, fill: "#f3efe9", stroke: "#9a8f86" }, svg);
+    VZ.text(svg, 240, 197, "管理係", { "font-size": 16 });
+    VZ.text(svg, 240, 221, "空いている箱を貸し、返された箱に印をつける", { "font-size": 13, fill: "#7a716a" });
+  }
+});
+</script>
+</body>
+</html>
